@@ -1,0 +1,21 @@
+# ─── CREDENCIALES - NUNCA subir al repositorio ────────────────────────────
+credentials.json
+appsettings.json
+
+# Si querés subir el appsettings sin datos sensibles, creá un
+# appsettings.example.json con los campos vacíos y subí ese en su lugar.
+
+# ─── .NET ──────────────────────────────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# ─── Archivos de datos generados ──────────────────────────────────────────
+*.xlsx
+
+# ─── Sistema operativo ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
