@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuillenBot", "QuillenBot.csproj", "{B49660B0-91F3-3E90-D9D8-C03789F8642D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatBotPedidos", "ChatBotPedidos.csproj", "{B49660B0-91F3-3E90-D9D8-C03789F8642D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

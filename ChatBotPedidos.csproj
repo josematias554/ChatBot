@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,11 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Telegram.Bot" Version="22.0.0" />
-    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.68.0.3626" />
-    <PackageReference Include="Google.Apis.Auth" Version="1.68.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Telegram.Bot" Version="22.9.5.3" />
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.73.0.4061" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>

@@ -14,14 +14,14 @@ public class GoogleSheetsService
     private readonly ILogger<GoogleSheetsService> _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
-    private const string SHEET_PEDIDOS    = "Pedidos";
-    private const string SHEET_ITEMS      = "Items_Pedidos";
+    private const string SHEET_PEDIDOS = "Pedidos";
+    private const string SHEET_ITEMS = "Items_Pedidos";
     private const string SHEET_PROVEEDORES = "Proveedores";
 
     public GoogleSheetsService(string credentialsPath, string spreadsheetId, ILogger<GoogleSheetsService> logger)
     {
         _spreadsheetId = spreadsheetId;
-        _logger        = logger;
+        _logger = logger;
 
         var credential = GoogleCredential
             .FromFile(credentialsPath)
@@ -30,7 +30,7 @@ public class GoogleSheetsService
         _sheets = new SheetsService(new BaseClientService.Initializer
         {
             HttpClientInitializer = credential,
-            ApplicationName       = "QuillenBot"
+            ApplicationName = "QuillenBot"
         });
 
         InicializarHojasAsync().GetAwaiter().GetResult();
@@ -98,7 +98,7 @@ public class GoogleSheetsService
 
     private async Task EscribirEncabezadoSiVacioAsync(string hoja, string[] headers)
     {
-        var range    = $"{hoja}!A1:Z1";
+        var range = $"{hoja}!A1:Z1";
         var response = await _sheets.Spreadsheets.Values.Get(_spreadsheetId, range).ExecuteAsync();
 
         if (response.Values == null || response.Values.Count == 0)
@@ -116,7 +116,7 @@ public class GoogleSheetsService
     // ─── Helpers ───────────────────────────────────────────────────────────
     private async Task<int> ObtenerProximoIdAsync(string hoja)
     {
-        var range    = $"{hoja}!A:A";
+        var range = $"{hoja}!A:A";
         var response = await _sheets.Spreadsheets.Values.Get(_spreadsheetId, range).ExecuteAsync();
         // Filas: row 0 = header, resto = datos
         return (response.Values?.Count ?? 1); // id = cantidad de filas (sin header)
@@ -183,7 +183,7 @@ public class GoogleSheetsService
         try
         {
             // Buscar la fila del pedido por ID
-            var range    = $"{SHEET_PEDIDOS}!A:A";
+            var range = $"{SHEET_PEDIDOS}!A:A";
             var response = await _sheets.Spreadsheets.Values.Get(_spreadsheetId, range).ExecuteAsync();
 
             if (response.Values == null) return;
@@ -237,5 +237,75 @@ public class GoogleSheetsService
             return proveedor.Id;
         }
         finally { _lock.Release(); }
+    }
+
+    // ─── Datos de ejemplo para capturas ───────────────────────────────────────
+    public async Task CargarEjemplosAsync()
+    {
+        Console.WriteLine("Cargando datos de ejemplo...");
+
+        var pedidos = new List<IList<object>>
+        {
+            new List<object> { "ID", "Fecha", "Empresa", "Contacto", "Teléfono", "Email", "Productos (Resumen)", "Total ($)", "Dirección Entrega", "Estado" },
+            new List<object> { 1, "02/05/2025 09:14", "Distribuidora Norte S.A.",   "Carlos Méndez",    "+54 381 4123456", "cmendes@distribnorte.com",  "Frutilla x50kg, Arándanos x20kg",    95000, "Av. Mate de Luna 2500, Tucumán",      "Aprobado"  },
+            new List<object> { 2, "02/05/2025 11:32", "Supermercado El Familiar",   "Laura Gómez",      "+54 381 5234567", "lgomez@elfamiliar.com.ar",   "Mango x30kg, Piña x40kg",            46000, "Ruta 9 Km 12, Yerba Buena",           "Aprobado"  },
+            new List<object> { 3, "03/05/2025 08:45", "Mayorista Don Pedro",        "Pedro Castillo",   "+54 385 6345678", "pcastillo@donpedro.com",     "Moras x25kg, Frambuesas x15kg",      40250, "San Martín 450, Concepción",          "Pendiente" },
+            new List<object> { 4, "03/05/2025 14:20", "Frutería Los Andes",         "Valeria Torres",   "+54 381 7456789", "vtorres@losandes.com",       "Frutilla x100kg, Maracuyá x20kg",   101000, "Belgrano 890, San Miguel de Tucumán", "Aprobado"  },
+            new List<object> { 5, "04/05/2025 10:05", "Supermercado Vital",         "Martín Ruiz",      "+54 381 8567890", "mruiz@supervital.com.ar",    "Arándanos x50kg, Moras x30kg",       88500, "Av. Roca 1200, Tafí Viejo",           "Rechazado" },
+            new List<object> { 6, "04/05/2025 16:48", "Distribuidora del Sur",      "Ana Flores",       "+54 380 9678901", "aflores@distrsur.com",       "Mango x60kg, Frutilla x40kg",        76000, "España 340, Banda del Río Salí",      "Pendiente" },
+            new List<object> { 7, "05/05/2025 09:30", "Mercado Central Tucumán",    "Jorge Soria",      "+54 381 1234567", "jsoria@mercadocentral.com",  "Piña x80kg, Maracuyá x35kg",         76000, "Mercado Central Local 45, Tucumán",   "Aprobado"  },
+            new List<object> { 8, "05/05/2025 13:15", "Almacenes Mayoristas Díaz",  "Roberto Díaz",     "+54 381 2345678", "rdiaz@almacendiaz.com.ar",   "Frambuesas x20kg, Arándanos x30kg",  58000, "Los Sauces 780, Yerba Buena",         "Pendiente" },
+        };
+
+        var items = new List<IList<object>>
+        {
+            new List<object> { "ID_Pedido", "Producto", "Cantidad (kg)", "Precio/kg ($)", "Subtotal ($)" },
+            new List<object> { 1, "Frutilla",   50,  850,  42500 },
+            new List<object> { 1, "Arándanos",  20, 1200,  24000 },
+            new List<object> { 2, "Mango",      30,  700,  21000 },
+            new List<object> { 2, "Piña",       40,  600,  24000 },
+            new List<object> { 3, "Moras",      25,  950,  23750 },
+            new List<object> { 3, "Frambuesas", 15, 1100,  16500 },
+            new List<object> { 4, "Frutilla",  100,  850,  85000 },
+            new List<object> { 4, "Maracuyá",   20,  800,  16000 },
+            new List<object> { 5, "Arándanos",  50, 1200,  60000 },
+            new List<object> { 5, "Moras",      30,  950,  28500 },
+            new List<object> { 6, "Mango",      60,  700,  42000 },
+            new List<object> { 6, "Frutilla",   40,  850,  34000 },
+            new List<object> { 7, "Piña",       80,  600,  48000 },
+            new List<object> { 7, "Maracuyá",   35,  800,  28000 },
+            new List<object> { 8, "Frambuesas", 20, 1100,  22000 },
+            new List<object> { 8, "Arándanos",  30, 1200,  36000 },
+        };
+
+        var proveedores = new List<IList<object>>
+        {
+            new List<object> { "ID", "Fecha", "Empresa", "Contacto", "Teléfono", "Email", "Servicio Ofrecido", "Descripción" },
+            new List<object> { 1, "01/05/2025 10:00", "LogiNorte S.R.L.",      "Santiago Vera",    "+54 381 3456789", "svera@loginorte.com",       "Logística y transporte", "Flota de 5 camiones refrigerados, cobertura NOA, entregas en 24hs."         },
+            new List<object> { 2, "02/05/2025 15:30", "PackSur Packaging",     "Daniela Moreno",   "+54 381 4567890", "dmoreno@packsur.com.ar",    "Packaging y envases",    "Cajas, bandejas y film para frutas frescas y congeladas. Stock permanente." },
+            new List<object> { 3, "04/05/2025 11:20", "AgroInsumos del Norte", "Felipe Gutiérrez", "+54 385 5678901", "fgutierrez@agroinsumos.com","Insumos agrícolas",       "Fertilizantes, fitosanitarios y riego. Asesoramiento técnico incluido."     },
+        };
+
+        await EscribirHojaCompletaAsync(SHEET_PEDIDOS, pedidos);
+        await EscribirHojaCompletaAsync(SHEET_ITEMS, items);
+        await EscribirHojaCompletaAsync(SHEET_PROVEEDORES, proveedores);
+
+        Console.WriteLine("✅ Datos de ejemplo cargados. Abrí tu Google Sheets.");
+    }
+
+    private async Task EscribirHojaCompletaAsync(string hoja, List<IList<object>> datos)
+    {
+        await _sheets.Spreadsheets.Values.Clear(
+            new Google.Apis.Sheets.v4.Data.ClearValuesRequest(),
+            _spreadsheetId,
+            $"{hoja}!A1:Z1000"
+        ).ExecuteAsync();
+
+        var body = new Google.Apis.Sheets.v4.Data.ValueRange { Values = datos };
+        var req = _sheets.Spreadsheets.Values.Update(body, _spreadsheetId, $"{hoja}!A1");
+        req.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
+        await req.ExecuteAsync();
+
+        _logger.LogInformation("Hoja {Hoja}: {Count} filas cargadas", hoja, datos.Count - 1);
     }
 }

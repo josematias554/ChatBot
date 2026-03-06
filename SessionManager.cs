@@ -2,9 +2,6 @@ using QuillenBot.Models;
 
 namespace QuillenBot.Services;
 
-/// <summary>
-/// Mantiene en memoria las sesiones activas de cada usuario de Telegram.
-/// </summary>
 public class SessionManager
 {
     private readonly Dictionary<long, ConversationSession> _sessions = new();

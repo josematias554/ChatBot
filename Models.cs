@@ -37,13 +37,13 @@ public class ConversationSession
 public enum ConversationStep
 {
     Inicio,
-    EsperandoTipo,          // Preguntando si es cliente o proveedor
+    EsperandoTipo,       
     PidiendoNombre,
     PidiendoEmpresa,
     PidiendoTelefono,
     PidiendoEmail,
 
-    // Cliente: flujo de pedido
+
     PidiendoProducto,
     PidiendoCantidad,
     ConfirmandoItem,
@@ -51,7 +51,7 @@ public enum ConversationStep
     PidiendoDireccion,
     ConfirmandoPedido,
 
-    // Proveedor
+
     PidiendoServicio,
     PidiendoDescripcionServicio,
     ConfirmandoProveedor,
@@ -81,11 +81,10 @@ public class PedidoCliente
 public class OrderItem
 {
     public string Producto { get; set; } = string.Empty;
-    public decimal Cantidad { get; set; }       // en kg
-    public decimal PrecioUnitario { get; set; } // por kg
+    public decimal Cantidad { get; set; }       
+    public decimal PrecioUnitario { get; set; } 
     public decimal Subtotal => Cantidad * PrecioUnitario;
 
-    // Temporal durante el flujo
     public string ProductoTemporal { get; set; } = string.Empty;
 }
 
@@ -135,7 +134,7 @@ public static class Catalogo
 
     public static (bool encontrado, string nombreReal, decimal precio) BuscarProducto(string nombre)
     {
-        // Normalizar el input (quitar acentos, minúsculas)
+ 
         var nombreNorm = QuillenBot.Services.Validador.NormalizarTexto(nombre);
 
         foreach (var (key, val) in Productos)

@@ -14,14 +14,18 @@ public class GeminiService
 {
     private readonly string _apiKey;
     private readonly string _modelName;
+    private readonly string _nombreEmpresa;
+    private readonly string _rubroEmpresa;
     private readonly ILogger<GeminiService> _logger;
     private static readonly HttpClient _http = new();
 
-    public GeminiService(string apiKey, string modelName, ILogger<GeminiService> logger)
+    public GeminiService(string apiKey, string modelName, string nombreEmpresa, string rubroEmpresa, ILogger<GeminiService> logger)
     {
-        _apiKey    = apiKey;
-        _modelName = modelName;
-        _logger    = logger;
+        _apiKey        = apiKey;
+        _modelName     = modelName;
+        _nombreEmpresa = nombreEmpresa;
+        _rubroEmpresa  = rubroEmpresa;
+        _logger        = logger;
     }
 
     // ─── Llamada base a la API ─────────────────────────────────────────────
@@ -63,7 +67,7 @@ public class GeminiService
     public async Task<ClasificacionUsuario> ClasificarUsuarioAsync(string mensaje)
     {
         var prompt =
-            "Eres el asistente de Quillen Berries, empresa de frutas en Tucumán, Argentina. Clientes son MAYORISTAS.\n\n" +
+            "Eres el asistente de " + _nombreEmpresa + ", empresa de " + _rubroEmpresa + ". Clientes son MAYORISTAS.\n\n" +
             "Mensaje del usuario: \"" + mensaje + "\"\n\n" +
             "Clasifica si es cliente (quiere comprar/pedir) o proveedor (ofrece servicios) o desconocido.\n" +
             "Responde SOLO con JSON sin markdown: {\"tipo\":\"cliente\",\"intencion\":\"texto breve\"}\n" +
@@ -101,7 +105,7 @@ public class GeminiService
     {
         var productos = string.Join(", ", Catalogo.Productos.Keys);
         var prompt =
-            "Catálogo de Quillen Berries: " + productos + "\n" +
+            "Catálogo de " + _nombreEmpresa + ": " + productos + "\n" +
             "El usuario escribió: \"" + mensajeUsuario + "\"\n" +
             "Responde SOLO con el nombre exacto del producto del catálogo que mejor coincide, o \"ninguno\". Sin explicaciones.";
 

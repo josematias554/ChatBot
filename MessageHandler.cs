@@ -4,6 +4,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using QuillenBot.Models;
 using QuillenBot.Services;
+using QuillenBot.Config;
 using Microsoft.Extensions.Logging;
 
 namespace QuillenBot.Handlers;
@@ -11,11 +12,13 @@ namespace QuillenBot.Handlers;
 public class MessageHandler
 {
     private readonly ITelegramBotClient _bot;
-    private readonly SessionManager      _sessions;
-    private readonly GeminiService       _gemini;
+    private readonly SessionManager _sessions;
+    private readonly GeminiService _gemini;
     private readonly GoogleSheetsService _sheets;
-    private readonly StockService        _stock;
-    private readonly long                _approverChatId;
+    private readonly StockService _stock;
+    private readonly long _approverChatId;
+    private readonly string _nombreEmpresa;
+    private readonly string _rubroEmpresa;
     private readonly ILogger<MessageHandler> _logger;
 
     public MessageHandler(
@@ -25,15 +28,19 @@ public class MessageHandler
         GoogleSheetsService sheets,
         StockService stock,
         long approverChatId,
+        string nombreEmpresa,
+        string rubroEmpresa,
         ILogger<MessageHandler> logger)
     {
-        _bot            = bot;
-        _sessions       = sessions;
-        _gemini         = gemini;
-        _sheets         = sheets;
-        _stock          = stock;
+        _bot = bot;
+        _sessions = sessions;
+        _gemini = gemini;
+        _sheets = sheets;
+        _stock = stock;
         _approverChatId = approverChatId;
-        _logger         = logger;
+        _nombreEmpresa = nombreEmpresa;
+        _rubroEmpresa = rubroEmpresa;
+        _logger = logger;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -44,11 +51,10 @@ public class MessageHandler
         if (message.Text is null) return;
 
         var chatId = message.Chat.Id;
-        var texto  = message.Text.Trim();
+        var texto = message.Text.Trim();
 
         _logger.LogInformation("[{ChatId}] Mensaje: {Texto}", chatId, texto);
 
-        // Comando /start siempre reinicia
         if (texto.StartsWith("/start"))
         {
             await _sessions.EliminarSesionAsync(chatId);
@@ -57,15 +63,15 @@ public class MessageHandler
             return;
         }
 
-        // Comando /cancelar
+
         if (texto.StartsWith("/cancelar"))
         {
             await _sessions.EliminarSesionAsync(chatId);
-            await _bot.SendMessage(chatId, "❌ Operación cancelada. Escribí /start para comenzar de nuevo.");
+            await _bot.SendMessage(chatId, "❌ Operación cancelada. Escribí cualquier mensaje para comenzar de nuevo.");
             return;
         }
 
-        // Si es el aprobador usando comandos de gestión
+
         if (chatId == _approverChatId && texto.StartsWith("/"))
         {
             await HandleApproverCommandAsync(chatId, texto);
@@ -73,6 +79,14 @@ public class MessageHandler
         }
 
         var ses = await _sessions.ObtenerOCrearSesionAsync(chatId);
+
+     
+        if (ses.Step == ConversationStep.Inicio)
+        {
+            await EnviarBienvenidaAsync(chatId, ses);
+            return;
+        }
+
         await DispatchStepAsync(ses, texto, chatId);
     }
 
@@ -91,7 +105,7 @@ public class MessageHandler
 
         await _bot.SendMessage(
             chatId,
-            "🍓 ¡Bienvenido a *Quillen Berries*!\n\nSomos productores y comercializadores de fruta fresca y congelada del norte argentino.\n\n¿Con qué puedo ayudarte hoy?",
+            $"🎉 ¡Bienvenido a *{_nombreEmpresa}*!\n\nSomos especialistas en {_rubroEmpresa}.\n\n¿Con qué puedo ayudarte hoy?",
             parseMode: ParseMode.Markdown,
             replyMarkup: teclado
         );
@@ -105,7 +119,7 @@ public class MessageHandler
         if (callback.Message is null) return;
 
         var chatId = callback.Message.Chat.Id;
-        var data   = callback.Data ?? "";
+        var data = callback.Data ?? "";
 
         await _bot.AnswerCallbackQuery(callback.Id);
 
@@ -115,13 +129,13 @@ public class MessageHandler
         {
             case "tipo_cliente":
                 session.UserType = UserType.Cliente;
-                session.Step     = ConversationStep.PidiendoNombre;
+                session.Step = ConversationStep.PidiendoNombre;
                 await _bot.SendMessage(chatId, "¡Perfecto! Para empezar, ¿cuál es tu *nombre completo*?", parseMode: ParseMode.Markdown);
                 break;
 
             case "tipo_proveedor":
                 session.UserType = UserType.Proveedor;
-                session.Step     = ConversationStep.PidiendoNombre;
+                session.Step = ConversationStep.PidiendoNombre;
                 await _bot.SendMessage(chatId, "¡Bienvenido! ¿Cuál es tu *nombre completo*?", parseMode: ParseMode.Markdown);
                 break;
 
@@ -135,7 +149,7 @@ public class MessageHandler
                 break;
 
             default:
-                // Confirmaciones de aprobación/rechazo: formato "aprobar_ID" o "rechazar_ID"
+
                 if (data.StartsWith("aprobar_") || data.StartsWith("rechazar_"))
                     await HandleApprovalCallbackAsync(chatId, data);
                 break;
@@ -147,7 +161,7 @@ public class MessageHandler
     // ═══════════════════════════════════════════════════════════════════════
     private async Task DispatchStepAsync(ConversationSession session, string texto, long chatId)
     {
-        // Si el step es Inicio o EsperandoTipo, usar Gemini para clasificar
+
         if (session.Step == ConversationStep.Inicio || session.Step == ConversationStep.EsperandoTipo)
         {
             await ClasificarYRedirigirAsync(session, texto, chatId);
@@ -156,61 +170,60 @@ public class MessageHandler
 
         switch (session.Step)
         {
-            // ── Compartidos ────────────────────────────────────────────
+ 
             case ConversationStep.PidiendoNombre:
-            {
-                var (ok, error) = Validador.ValidarNombre(texto);
-                if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
-                session.NombreContacto = texto.Trim();
-                session.ResetErrores();
-                session.Step = ConversationStep.PidiendoEmpresa;
-                await _bot.SendMessage(chatId, "¿Cuál es el nombre de tu *empresa*?", parseMode: ParseMode.Markdown);
-                break;
-            }
+                {
+                    var (ok, error) = Validador.ValidarNombre(texto);
+                    if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
+                    session.NombreContacto = texto.Trim();
+                    session.ResetErrores();
+                    session.Step = ConversationStep.PidiendoEmpresa;
+                    await _bot.SendMessage(chatId, "¿Cuál es el nombre de tu *empresa*?", parseMode: ParseMode.Markdown);
+                    break;
+                }
 
             case ConversationStep.PidiendoEmpresa:
-            {
-                var (ok, error) = Validador.ValidarEmpresa(texto);
-                if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
-                session.Empresa = texto.Trim();
-                session.ResetErrores();
-                session.Step = ConversationStep.PidiendoTelefono;
-                await _bot.SendMessage(chatId, "¿Cuál es tu *número de teléfono*?", parseMode: ParseMode.Markdown);
-                break;
-            }
+                {
+                    var (ok, error) = Validador.ValidarEmpresa(texto);
+                    if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
+                    session.Empresa = texto.Trim();
+                    session.ResetErrores();
+                    session.Step = ConversationStep.PidiendoTelefono;
+                    await _bot.SendMessage(chatId, "¿Cuál es tu *número de teléfono*?", parseMode: ParseMode.Markdown);
+                    break;
+                }
 
             case ConversationStep.PidiendoTelefono:
-            {
-                var (ok, error) = Validador.ValidarTelefono(texto);
-                if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
-                session.Telefono = texto.Trim();
-                session.ResetErrores();
-                session.Step = ConversationStep.PidiendoEmail;
-                await _bot.SendMessage(chatId, "¿Cuál es tu *email*?", parseMode: ParseMode.Markdown);
-                break;
-            }
+                {
+                    var (ok, error) = Validador.ValidarTelefono(texto);
+                    if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
+                    session.Telefono = texto.Trim();
+                    session.ResetErrores();
+                    session.Step = ConversationStep.PidiendoEmail;
+                    await _bot.SendMessage(chatId, "¿Cuál es tu *email*?", parseMode: ParseMode.Markdown);
+                    break;
+                }
 
             case ConversationStep.PidiendoEmail:
-            {
-                var (ok, error) = Validador.ValidarEmail(texto);
-                if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
-                session.Email = texto.Trim();
-                session.ResetErrores();
-                if (session.UserType == UserType.Cliente)
                 {
-                    session.Step = ConversationStep.PidiendoProducto;
-                    await _bot.SendMessage(chatId, $"Genial, {session.NombreContacto.Split(' ')[0]}. Ahora armémos tu pedido 🛒");
-                    await EnviarCatalogoAsync(chatId);
+                    var (ok, error) = Validador.ValidarEmail(texto);
+                    if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
+                    session.Email = texto.Trim();
+                    session.ResetErrores();
+                    if (session.UserType == UserType.Cliente)
+                    {
+                        session.Step = ConversationStep.PidiendoProducto;
+                        await _bot.SendMessage(chatId, $"Genial, {session.NombreContacto.Split(' ')[0]}. Ahora armémos tu pedido 🛒");
+                        await EnviarCatalogoAsync(chatId);
+                    }
+                    else
+                    {
+                        session.Step = ConversationStep.PidiendoServicio;
+                        await _bot.SendMessage(chatId, "¿Qué *servicio o producto* ofrecés? (ej: logística, packaging, insumos, etc.)", parseMode: ParseMode.Markdown);
+                    }
+                    break;
                 }
-                else
-                {
-                    session.Step = ConversationStep.PidiendoServicio;
-                    await _bot.SendMessage(chatId, "¿Qué *servicio o producto* ofrecés a Quillen Berries? (ej: logística, packaging, insumos, etc.)", parseMode: ParseMode.Markdown);
-                }
-                break;
-            }
 
-            // ── Flujo Cliente ──────────────────────────────────────────
             case ConversationStep.PidiendoProducto:
                 await ProcesarProductoAsync(session, texto, chatId);
                 break;
@@ -232,15 +245,15 @@ public class MessageHandler
                 break;
 
             case ConversationStep.PidiendoDireccion:
-            {
-                var (ok, error) = Validador.ValidarDireccion(texto);
-                if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
-                session.DireccionEntrega = texto.Trim();
-                session.ResetErrores();
-                session.Step = ConversationStep.ConfirmandoPedido;
-                await MostrarResumenPedidoAsync(chatId, session);
-                break;
-            }
+                {
+                    var (ok, error) = Validador.ValidarDireccion(texto);
+                    if (!ok) { await EnviarErrorAsync(chatId, session, error); return; }
+                    session.DireccionEntrega = texto.Trim();
+                    session.ResetErrores();
+                    session.Step = ConversationStep.ConfirmandoPedido;
+                    await MostrarResumenPedidoAsync(chatId, session);
+                    break;
+                }
 
             case ConversationStep.ConfirmandoPedido:
                 if (texto.ToLower() is "confirmar" or "sí" or "si" or "s" or "ok")
@@ -249,16 +262,15 @@ public class MessageHandler
                     await _bot.SendMessage(chatId, "¿Querés confirmar el pedido? Respondé *confirmar* para proceder o /cancelar para cancelar.", parseMode: ParseMode.Markdown);
                 break;
 
-            // ── Flujo Proveedor ────────────────────────────────────────
             case ConversationStep.PidiendoServicio:
                 session.ServicioOfrecido = texto;
-                session.Step             = ConversationStep.PidiendoDescripcionServicio;
+                session.Step = ConversationStep.PidiendoDescripcionServicio;
                 await _bot.SendMessage(chatId, "Contanos un poco más: *¿qué incluye el servicio?* (capacidad, cobertura, condiciones, etc.)", parseMode: ParseMode.Markdown);
                 break;
 
             case ConversationStep.PidiendoDescripcionServicio:
                 session.DescripcionServicio = texto;
-                session.Step                = ConversationStep.ConfirmandoProveedor;
+                session.Step = ConversationStep.ConfirmandoProveedor;
                 await MostrarResumenProveedorAsync(chatId, session);
                 break;
 
@@ -290,7 +302,7 @@ public class MessageHandler
 
             case UserType.Proveedor:
                 session.Step = ConversationStep.PidiendoNombre;
-                await _bot.SendMessage(chatId, "Entiendo que querés ofrecer un servicio a Quillen 🤝\n\n¿Cuál es tu *nombre completo*?", parseMode: ParseMode.Markdown);
+                await _bot.SendMessage(chatId, $"Entiendo que querés ofrecer un servicio a *{_nombreEmpresa}* 🤝\n\n¿Cuál es tu *nombre completo*?", parseMode: ParseMode.Markdown);
                 break;
 
             default:
@@ -310,7 +322,7 @@ public class MessageHandler
         {
             await _sessions.EliminarSesionAsync(chatId);
             await _bot.SendMessage(chatId,
-                "❌ *Demasiados intentos fallidos.*\n\nSe canceló la operación. Escribí /start para comenzar de nuevo o contactá a Quillen Berries directamente.",
+                "❌ *Demasiados intentos fallidos.*\n\nSe canceló la operación. Escribí /start para comenzar de nuevo o reintenlo en unos minutos.",
                 parseMode: ParseMode.Markdown);
             return;
         }
@@ -335,10 +347,8 @@ public class MessageHandler
 
     private async Task ProcesarProductoAsync(ConversationSession session, string texto, long chatId)
     {
-        // Primero búsqueda directa en catálogo
         var (encontrado, nombreReal, precio) = Catalogo.BuscarProducto(texto);
 
-        // Si no encontrado, usar Gemini
         if (!encontrado)
         {
             await _bot.SendChatAction(chatId, ChatAction.Typing);
@@ -354,7 +364,6 @@ public class MessageHandler
             return;
         }
 
-        // Guardamos el producto temporal
         session.Items.Add(new OrderItem { Producto = nombreReal, PrecioUnitario = precio });
         session.Step = ConversationStep.PidiendoCantidad;
         await _bot.SendMessage(chatId,
@@ -369,7 +378,6 @@ public class MessageHandler
 
         var lastItem = session.Items.Last();
 
-        // Validar contra stock disponible
         var (disponible, stockActual, mensajeStock) = await _stock.ConsultarStockAsync(lastItem.Producto, cantidad);
         if (!disponible)
         {
@@ -402,7 +410,7 @@ public class MessageHandler
     private async Task MostrarResumenPedidoAsync(long chatId, ConversationSession session)
     {
         var total = session.Items.Sum(i => i.Subtotal);
-        var sb    = new System.Text.StringBuilder();
+        var sb = new System.Text.StringBuilder();
 
         sb.AppendLine("📋 *Resumen de tu pedido:*\n");
         sb.AppendLine($"👤 Contacto: {session.NombreContacto}");
@@ -423,26 +431,24 @@ public class MessageHandler
     {
         var pedido = new PedidoCliente
         {
-            NombreContacto   = session.NombreContacto,
-            Empresa          = session.Empresa,
-            Telefono         = session.Telefono,
-            Email            = session.Email,
-            Items            = session.Items,
+            NombreContacto = session.NombreContacto,
+            Empresa = session.Empresa,
+            Telefono = session.Telefono,
+            Email = session.Email,
+            Items = session.Items,
             DireccionEntrega = session.DireccionEntrega,
-            Total            = session.Items.Sum(i => i.Subtotal),
-            Status           = OrderStatus.Pendiente,
-            TelegramChatId   = chatId
+            Total = session.Items.Sum(i => i.Subtotal),
+            Status = OrderStatus.Pendiente,
+            TelegramChatId = chatId
         };
 
         var id = await _sheets.GuardarPedidoAsync(pedido);
         await _sessions.RegistrarPedidoPendienteAsync(pedido, chatId);
 
-        // Confirmar al cliente
         await _bot.SendMessage(chatId,
-            $"✅ *¡Pedido #{id} recibido!*\n\nEsta en revisión. Te avisaremos cuando sea aprobado.\n\n_Quillen Berries te contactará para coordinar la entrega._",
+            $"✅ *¡Pedido #{id} recibido!*\n\nEsta en revisión. Te avisaremos cuando sea aprobado.\n\n_Luego te contactaremos para coordinar la entrega._",
             parseMode: ParseMode.Markdown);
 
-        // Notificar al aprobador
         await NotificarAprobadorAsync(pedido);
 
         session.Step = ConversationStep.Finalizado;
@@ -471,22 +477,21 @@ public class MessageHandler
     {
         var proveedor = new RegistroProveedor
         {
-            NombreContacto      = session.NombreContacto,
-            Empresa             = session.Empresa,
-            Telefono            = session.Telefono,
-            Email               = session.Email,
-            ServicioOfrecido    = session.ServicioOfrecido,
+            NombreContacto = session.NombreContacto,
+            Empresa = session.Empresa,
+            Telefono = session.Telefono,
+            Email = session.Email,
+            ServicioOfrecido = session.ServicioOfrecido,
             DescripcionServicio = session.DescripcionServicio,
-            TelegramChatId      = chatId
+            TelegramChatId = chatId
         };
 
         var id = await _sheets.GuardarProveedorAsync(proveedor);
 
         await _bot.SendMessage(chatId,
-            $"✅ *¡Registro enviado!*\n\nTus datos fueron registrados (ID #{id}). El equipo de Quillen Berries te contactará a la brevedad.\n\n¡Gracias por comunicarte!",
+            $"✅ *¡Registro enviado!*\n\nTus datos fueron registrados (ID #{id}). Te contactararemos a la brevedad.\n\n¡Gracias por comunicarte!",
             parseMode: ParseMode.Markdown);
 
-        // Notificar al aprobador (informativo, no requiere acción)
         if (_approverChatId != 0)
         {
             await _bot.SendMessage(_approverChatId,
@@ -536,9 +541,9 @@ public class MessageHandler
 
     private async Task HandleApprovalCallbackAsync(long approverChatId, string data)
     {
-        var partes    = data.Split('_');
-        var accion    = partes[0];
-        var pedidoId  = int.Parse(partes[1]);
+        var partes = data.Split('_');
+        var accion = partes[0];
+        var pedidoId = int.Parse(partes[1]);
 
         var (pedido, chatIdCliente) = await _sessions.ObtenerPedidoPendienteAsync(pedidoId);
 
@@ -553,24 +558,21 @@ public class MessageHandler
 
         if (accion == "aprobar")
         {
-            nuevoEstado       = OrderStatus.Aprobado;
-            mensajeCliente    = $"🎉 *¡Tu pedido #{pedidoId} fue APROBADO!*\n\nEl equipo de Quillen Berries coordinará la entrega a {pedido.DireccionEntrega} a la brevedad. ¡Gracias por tu compra!";
-            mensajeAprobador  = $"✅ Pedido #{pedidoId} *aprobado* correctamente.";
+            nuevoEstado = OrderStatus.Aprobado;
+            mensajeCliente = $"🎉 *¡Tu pedido #{pedidoId} fue APROBADO!*\n\nEl equipo de 'Tu Empresa' coordinará la entrega a {pedido.DireccionEntrega} a la brevedad. ¡Gracias por tu compra!";
+            mensajeAprobador = $"✅ Pedido #{pedidoId} *aprobado* correctamente.";
         }
         else
         {
-            nuevoEstado       = OrderStatus.Rechazado;
-            mensajeCliente    = $"❌ *Tu pedido #{pedidoId} fue rechazado.*\n\nEl equipo de Quillen se comunicará contigo para más información. Podés iniciar un nuevo pedido con /start.";
-            mensajeAprobador  = $"❌ Pedido #{pedidoId} *rechazado*.";
+            nuevoEstado = OrderStatus.Rechazado;
+            mensajeCliente = $"❌ *Tu pedido #{pedidoId} fue rechazado.*\n\nEl equipo de 'Tu Empresa' se comunicará contigo para más información. Podés iniciar un nuevo pedido con /start.";
+            mensajeAprobador = $"❌ Pedido #{pedidoId} *rechazado*.";
         }
 
         await _sheets.ActualizarEstadoPedidoAsync(pedidoId, nuevoEstado);
-
-        // Notificar cliente
         if (chatIdCliente != 0)
             await _bot.SendMessage(chatIdCliente, mensajeCliente, parseMode: ParseMode.Markdown);
 
-        // Confirmar al aprobador
         await _bot.SendMessage(approverChatId, mensajeAprobador, parseMode: ParseMode.Markdown);
 
         await _sessions.RemoverPedidoPendienteAsync(pedidoId);
@@ -578,7 +580,6 @@ public class MessageHandler
 
     private async Task HandleApproverCommandAsync(long chatId, string comando)
     {
-        // /aprobar_5 o /rechazar_5 por si prefieren comandos de texto
         if (comando.StartsWith("/aprobar_") || comando.StartsWith("/rechazar_"))
         {
             var data = comando.TrimStart('/');

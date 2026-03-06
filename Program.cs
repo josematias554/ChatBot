@@ -16,7 +16,7 @@ var config = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json", optional: false)
     .Build();
 
-var botConfig    = config.GetSection("BotConfiguration").Get<BotConfiguration>()    ?? throw new Exception("Falta BotConfiguration en appsettings.json");
+var botConfig = config.GetSection("BotConfiguration").Get<BotConfiguration>() ?? throw new Exception("Falta BotConfiguration en appsettings.json");
 var geminiConfig = config.GetSection("GeminiConfiguration").Get<GeminiConfiguration>() ?? throw new Exception("Falta GeminiConfiguration en appsettings.json");
 
 // ─── Setup de logging ──────────────────────────────────────────────────────
@@ -27,16 +27,16 @@ using var loggerFactory = LoggerFactory.Create(builder =>
         .SetMinimumLevel(LogLevel.Information);
 });
 
-var logger         = loggerFactory.CreateLogger<Program>();
-var geminiLogger   = loggerFactory.CreateLogger<GeminiService>();
-var handlerLogger  = loggerFactory.CreateLogger<MessageHandler>();
+var logger = loggerFactory.CreateLogger<Program>();
+var geminiLogger = loggerFactory.CreateLogger<GeminiService>();
+var handlerLogger = loggerFactory.CreateLogger<MessageHandler>();
 
 // ─── Instanciar servicios ──────────────────────────────────────────────────
-var botClient   = new TelegramBotClient(botConfig.BotToken);
-var sessions    = new SessionManager();
-var sheetsSvc   = new GoogleSheetsService("credentials.json", botConfig.SpreadsheetId, loggerFactory.CreateLogger<GoogleSheetsService>());
-var geminiSvc   = new GeminiService(geminiConfig.ApiKey, geminiConfig.Model, geminiLogger);
-var stockSvc    = new StockService(loggerFactory.CreateLogger<StockService>());
+var botClient  = new TelegramBotClient(botConfig.BotToken);
+var sessions   = new SessionManager();
+var sheetsSvc  = new GoogleSheetsService("credentials.json", botConfig.SpreadsheetId, loggerFactory.CreateLogger<GoogleSheetsService>());
+var geminiSvc  = new GeminiService(geminiConfig.ApiKey, geminiConfig.Model, botConfig.NombreEmpresa, botConfig.RubroEmpresa, geminiLogger);
+var stockSvc   = new StockService(loggerFactory.CreateLogger<StockService>());
 
 var handler = new MessageHandler(
     botClient,
@@ -45,6 +45,8 @@ var handler = new MessageHandler(
     sheetsSvc,
     stockSvc,
     botConfig.ApproverChatId,
+    botConfig.NombreEmpresa,
+    botConfig.RubroEmpresa,
     handlerLogger
 );
 
@@ -53,6 +55,11 @@ var me = await botClient.GetMe();
 logger.LogInformation("Bot iniciado: @{Username} ({Id})", me.Username, me.Id);
 logger.LogInformation("Aprobador configurado: ChatId = {Id}", botConfig.ApproverChatId);
 logger.LogInformation("Google Sheets ID: {Id}", botConfig.SpreadsheetId);
+
+// ─── TEMPORAL: Cargar datos de ejemplo ────────────────────────────────────
+// Descomentar las 2 líneas de abajo, correr el bot UNA vez, volver a comentar
+//await sheetsSvc.CargarEjemplosAsync();
+//return;
 
 // ─── Long Polling ──────────────────────────────────────────────────────────
 using var cts = new CancellationTokenSource();
@@ -70,10 +77,10 @@ var receiverOptions = new ReceiverOptions
 };
 
 botClient.StartReceiving(
-    updateHandler:      HandleUpdateAsync,
-    errorHandler:       HandlePollingErrorAsync,
-    receiverOptions:    receiverOptions,
-    cancellationToken:  cts.Token
+    updateHandler: HandleUpdateAsync,
+    errorHandler: HandlePollingErrorAsync,
+    receiverOptions: receiverOptions,
+    cancellationToken: cts.Token
 );
 
 logger.LogInformation("Bot escuchando... Presioná Ctrl+C para detener.");

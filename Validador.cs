@@ -44,7 +44,6 @@ public static class Validador
     }
 
     // ─── Teléfono ──────────────────────────────────────────────────────────
-    // Acepta: +54 9 381 123 4567 / 3816525734 / +1-800-555-0199
     private static readonly Regex _regexTelefono = new(@"^\+?[\d\s\-\(\)]{7,20}$", RegexOptions.Compiled);
 
     public static (bool ok, string error) ValidarTelefono(string texto)
@@ -121,9 +120,6 @@ public static class Validador
     }
 
     // ─── Normalización de texto (quita acentos) ────────────────────────────
-    /// <summary>
-    /// Convierte "Arandanos" y "Arándanos" a "arandanos" para comparación.
-    /// </summary>
     public static string NormalizarTexto(string texto)
     {
         if (string.IsNullOrEmpty(texto)) return texto;

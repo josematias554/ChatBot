@@ -2,27 +2,15 @@ using Microsoft.Extensions.Logging;
 
 namespace QuillenBot.Services;
 
-/// <summary>
-/// Servicio de stock de Quillen Berries.
-///
-/// ESTADO ACTUAL: Stock hardcodeado como valores temporales.
-///
-/// INTEGRACIÓN PENDIENTE: Cuando la empresa provea su Excel de stock,
-/// reemplazar el método CargarDesdeExcelAsync() con la ruta real del archivo.
-/// El Excel debe tener columnas: "Producto" | "Stock (kg)"
-/// Ejemplo de fila: Frutilla | 500
-/// </summary>
+
 public class StockService
 {
     private readonly ILogger<StockService> _logger;
     private Dictionary<string, decimal> _stock = new();
     private DateTime _ultimaActualizacion = DateTime.MinValue;
 
-    // Cada cuánto tiempo se recarga el stock del Excel (en minutos)
     private const int CACHE_MINUTOS = 15;
 
-    // ─── Stock temporal hasta tener el Excel real ──────────────────────────
-    // REEMPLAZAR estos valores con los reales cuando la empresa provea el archivo
     private static readonly Dictionary<string, decimal> STOCK_TEMPORAL = new(StringComparer.OrdinalIgnoreCase)
     {
         { "Frutilla",    999999m },
@@ -74,19 +62,7 @@ public class StockService
         return _stock.TryGetValue(producto, out var s) ? s : 0;
     }
 
-    // ─── Integración con Excel (PENDIENTE) ────────────────────────────────
-    /// <summary>
-    /// PENDIENTE: Cuando la empresa provea el Excel, configurar la ruta aquí.
-    ///
-    /// El Excel debe tener este formato en la primera hoja:
-    /// | Producto   | Stock (kg) |
-    /// |------------|------------|
-    /// | Frutilla   | 500        |
-    /// | Arándanos  | 120        |
-    ///
-    /// Para activar: cambiar _excelPath por la ruta real y descomentar el código.
-    /// </summary>
-    private const string _excelPath = ""; // TODO: "C:\Quillen\stock.xlsx" cuando esté disponible
+    private const string _excelPath = ""; 
 
     private async Task IntentarRecargarAsync()
     {
@@ -106,7 +82,7 @@ public class StockService
 
     private Task CargarDesdeExcelAsync(string rutaExcel)
     {
-        // TODO: Implementar cuando la empresa provea el archivo
+        //Implementar cuando la empresa provea el archivo
         // Ejemplo con ClosedXML (agregar al .csproj si se activa):
         //
         // using var wb = new XLWorkbook(rutaExcel);
