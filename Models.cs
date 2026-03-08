@@ -27,6 +27,7 @@ public class ConversationSession
     public DateTime InicioSesion { get; set; } = DateTime.Now;
 
     // Control de errores consecutivos
+    public string Idioma { get; set; } = "es";
     public int ErroresConsecutivos { get; set; } = 0;
     public const int MaxErrores = 3;
 
